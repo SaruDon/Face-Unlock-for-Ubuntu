@@ -133,56 +133,54 @@ When face recognition is triggered, a gorgeous **iPhone-like animated UI** rende
 ## 📦 Installation
 
 ```bash
-# 1. Clone or download the project
-git clone https://github.com/jadiya/face-unlock-ubuntu.git
-cd face-unlock-ubuntu/
+# 1. Clone the repository
+git clone https://github.com/SaruDon/Face-Unlock-for-Ubuntu.git
+cd Face-Unlock-for-Ubuntu/
 
-# 2. Run the installer (takes ~10 minutes — compiles dlib from source)
+# 2. Run the installer
+# This will install system dependencies and compile dlib (takes ~5–10 mins)
 sudo bash install.sh
 
 # 3. Enroll your face
 sudo bash enroll.sh
 
-# 4. Test it!
-sudo ls /root     # ← should trigger face unlock UI instead of password
+# 4. Success! Test it with sudo
+sudo ls /root
 ```
 
 ### What the Installer Does
 
-The `install.sh` script performs these steps **automatically**:
+The `install.sh` script automates the entire setup:
 
-| Step | Description |
+| Step | description |
 |------|-------------|
-| **1. System Detection** | Validates Ubuntu 20.04+ and verifies root access |
-| **2. Create Directories** | Creates `/usr/local/lib/face-unlock/`, `/etc/face-unlock/encodings/`, backups dir, etc. |
-| **3. System Packages** | Installs `python3-pip`, `python3-gi`, `gir1.2-gtk-4.0`, `gir1.2-adw-1`, `libpam-python`, `cmake`, `build-essential`, `libopencv-dev`, `python3-opencv`, `python3-numpy`, `libdlib-dev`, `libboost-python-dev`, `plymouth`, `policykit-1`, and more |
-| **4. Python Packages** | Installs `face_recognition` and `opencv-python` via pip (compiles dlib with a visual spinner) |
-| **5. Copy Library Files** | Copies `face_engine.py`, `enroll.py`, `pam_face_unlock.py`, `face_unlock_ui.py`, `face_guardian.py`, `toggle-guard.sh` to `/usr/local/lib/face-unlock/` |
-| **6. PAM Module** | Installs `pam_face_unlock.py` to `/lib/security/` |
-| **7. PAM Configuration** | Backs up original `/etc/pam.d/sudo` and `/etc/pam.d/common-auth`, replaces them with face-unlock-aware versions |
-| **8. Plymouth Theme** | Installs the Face ID boot animation to `/usr/share/plymouth/themes/face-unlock/` |
-
-| **10. Polkit Policy** | Installs `com.face-unlock.policy` for secure enrollment and guard toggling |
-| **11. GNOME Extension & Guardian** | Installs the Face Guard quick toggle extension and systemd user service file |
-| **12. Default Config** | Writes `/etc/face-unlock/config.conf` with sensible defaults |
+| **Dependencies** | Installs Python3, OpenCV, dlib, GTK4, libadwaita, and PAM development headers. |
+| **PAM Config** | Backs up your auth files and adds Face Unlock as a primary authentication method. |
+| **Services** | Installs the Face Guardian background service and GNOME Shell extension. |
+| **Polkit** | Configures security policies so you can manage settings without being root. |
 
 ---
 
 ## 👤 Face Enrollment
 
+To register your face, run the enrollment script:
+
 ```bash
 sudo bash enroll.sh
 ```
 
-The enrollment wizard:
+### Enrollment Tips for Best Results:
+1. **Lighting**: Ensure your face is well-lit from the front. Avoid strong backlighting.
+2. **Movement**: The script will capture **15 samples**. When prompted, slowly move your head:
+   - Look straight at the camera.
+   - Tilt your head slightly **Left** and **Right**.
+   - Tilt your head slightly **Up** and **Down**.
+3. **Distance**: Stay about 30–60cm (1–2 feet) away from the camera.
 
-1. **Opens the webcam** in a full-screen white-background window (for maximum face illumination)
-2. **Detects your face** in real-time using OpenCV's HOG face detector
-3. **Captures 15 samples** at 0.5-second intervals as you move your head (straight, left, right, up, down)
-4. **Extracts 128-dimensional face encodings** using dlib's deep learning model (`num_jitters=100, model="large"` for maximum accuracy)
-5. **Saves encodings** to `/etc/face-unlock/encodings/<username>.pkl` with `chmod 600` permissions
-
-The enrollment window shows a live progress bar and face detection bounding box. Press **Q** or **Esc** to abort.
+### Managing Enrollment:
+- **Add more samples**: Just run `sudo bash enroll.sh` again to overwrite or add data.
+- **Delete data**: Run `sudo bash enroll.sh --delete` to remove your face profile.
+- **Settings**: Open the **"Lock Face"** app from your menu to adjust match strictness and timeouts.
 
 ### Enrollment Parameters
 
