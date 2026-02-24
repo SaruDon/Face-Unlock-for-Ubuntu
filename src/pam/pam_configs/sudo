@@ -1,0 +1,15 @@
+# PAM configuration for sudo — Face Unlock + Password Fallback
+# File: /etc/pam.d/sudo
+# Backed up original before modification
+
+# @include common-auth is replaced below with face-unlock logic
+
+# 1. Try face unlock first (sufficient = if it succeeds, skip remaining auth)
+auth  sufficient  pam_python.so /usr/local/lib/face-unlock/pam_face_unlock.py
+
+# 2. Fallback: standard Unix password
+@include common-auth
+
+# Account / session handling (unchanged)
+@include common-account
+@include common-session-noninteractive

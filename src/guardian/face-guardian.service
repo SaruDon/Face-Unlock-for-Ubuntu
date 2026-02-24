@@ -1,0 +1,15 @@
+[Unit]
+Description=Always-On Face Guardian
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /usr/local/lib/face-unlock/face_guardian.py
+Restart=on-failure
+RestartSec=5
+Environment=DISPLAY=:1
+Environment=XDG_RUNTIME_DIR=/run/user/1000
+
+[Install]
+WantedBy=graphical-session.target

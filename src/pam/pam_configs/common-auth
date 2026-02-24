@@ -1,0 +1,18 @@
+# PAM configuration for common-auth — Face Unlock + Password Fallback
+# File: /etc/pam.d/common-auth
+# Used by: login, lightdm, gdm, screen unlock, su, etc.
+#
+# This replaces the system's common-auth. The original is backed up
+# to /etc/face-unlock/backups/common-auth.bak
+
+# 1. Try face unlock first
+auth  [success=done ignore=ignore default=1]  pam_python.so /usr/local/lib/face-unlock/pam_face_unlock.py
+
+# 2. Standard Unix password (fallback or if face unlock not enrolled)
+auth  [success=1 default=ignore]  pam_unix.so nullok_secure try_first_pass
+
+# 3. Primary block — deny if nothing succeeded
+auth  requisite     pam_deny.so
+
+# 4. Fallthrough if denied  
+auth  required      pam_permit.so

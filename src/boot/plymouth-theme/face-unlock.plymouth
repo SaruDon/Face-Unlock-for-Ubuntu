@@ -1,0 +1,11 @@
+# Face Unlock Plymouth Theme
+# File: /usr/share/plymouth/themes/face-unlock/face-unlock.plymouth
+
+[Plymouth Theme]
+Name=Face Unlock
+Description=iPhone-style face unlock animation at boot
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/face-unlock
+ScriptFile=/usr/share/plymouth/themes/face-unlock/face-unlock.script

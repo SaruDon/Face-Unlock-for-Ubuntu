@@ -1,0 +1,135 @@
+#!/bin/bash
+# Face Unlock UI Launcher
+# Wrapper to run the GTK UI with the correct environment
+# Works correctly even when called from: su -, sudo, PAM, or system services
+
+SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
+
+# If installed on system, the python script is in the library dir
+if [[ -f "/usr/local/lib/face-unlock/face_unlock_ui.py" ]]; then
+    UI_SCRIPT="/usr/local/lib/face-unlock/face_unlock_ui.py"
+else
+    # Fallback to local script for development
+    UI_SCRIPT="${SCRIPT_DIR}/face_unlock_ui.py"
+fi
+
+# ─── Step 1: Find the active graphical session ────────────────────────────────
+# This works even when DISPLAY is stripped (e.g. after `su - user`)
+
+_find_active_session() {
+    # Try loginctl first — works on systemd systems
+    if command -v loginctl &>/dev/null; then
+        local session
+        session=$(loginctl list-sessions --no-legend 2>/dev/null \
+            | awk '{print $1}' \
+            | while read -r s; do
+                type=$(loginctl show-session "$s" -p Type --value 2>/dev/null)
+                if [[ "$type" == "x11" || "$type" == "wayland" || "$type" == "mir" ]]; then
+                    echo "$s"
+                    break
+                fi
+            done)
+        echo "$session"
+    fi
+}
+
+_setup_display_from_session() {
+    local session="$1"
+    [[ -z "$session" ]] && return 1
+
+    ACTIVE_USER=$(loginctl show-session "$session" -p Name  --value 2>/dev/null)
+    USER_UID=$(loginctl    show-session "$session" -p User  --value 2>/dev/null)
+    [[ -z "$ACTIVE_USER" || -z "$USER_UID" ]] && return 1
+
+    export XDG_RUNTIME_DIR="/run/user/${USER_UID}"
+
+    # Pull DISPLAY / WAYLAND_DISPLAY / XAUTHORITY from the user's systemd environment
+    local env_vars
+    env_vars=$(sudo -u "$ACTIVE_USER" \
+        systemctl --user show-environment 2>/dev/null \
+        | grep -E '^(DISPLAY|WAYLAND_DISPLAY|XAUTHORITY)=')
+
+    if [[ -n "$env_vars" ]]; then
+        while IFS='=' read -r key val; do
+            export "$key"="$val"
+        done <<< "$env_vars"
+    fi
+
+    # Fallback: probe common DISPLAY values if systemd env came up empty
+    if [[ -z "$DISPLAY" ]]; then
+        for d in :0 :1 :2; do
+            if DISPLAY="$d" sudo -u "$ACTIVE_USER" xdpyinfo &>/dev/null 2>&1; then
+                export DISPLAY="$d"
+                break
+            fi
+        done
+    fi
+
+    # Fallback: locate XAUTHORITY file
+    if [[ -z "$XAUTHORITY" ]]; then
+        local user_home
+        user_home=$(eval echo "~${ACTIVE_USER}")
+        for candidate in \
+            "${user_home}/.Xauthority" \
+            "${XDG_RUNTIME_DIR}/gdm/Xauthority" \
+            "${XDG_RUNTIME_DIR}/.mutter-Xwaylandauth"*; do
+            if [[ -f "$candidate" ]]; then
+                export XAUTHORITY="$candidate"
+                break
+            fi
+        done
+    fi
+
+    # Grant X access to the current (possibly root) user
+    if [[ $EUID -eq 0 && -n "$DISPLAY" ]]; then
+        sudo -u "$ACTIVE_USER" \
+            env DISPLAY="$DISPLAY" XAUTHORITY="$XAUTHORITY" \
+            xhost +SI:localuser:root &>/dev/null || true
+        # Also grant the target user (jadiya) if running as root
+        sudo -u "$ACTIVE_USER" \
+            env DISPLAY="$DISPLAY" XAUTHORITY="$XAUTHORITY" \
+            xhost +SI:localuser:jadiya &>/dev/null || true
+    fi
+
+    return 0
+}
+
+# ─── Step 2: Populate environment ─────────────────────────────────────────────
+
+if [[ -z "$DISPLAY" && -z "$WAYLAND_DISPLAY" ]]; then
+    SESSION=$(_find_active_session)
+
+    if [[ -n "$SESSION" ]]; then
+        _setup_display_from_session "$SESSION"
+    fi
+
+    # Last-resort: inherit from sudo invoking user
+    if [[ -z "$DISPLAY" && -n "$SUDO_USER" ]]; then
+        SUDO_UID=$(id -u "$SUDO_USER")
+        export XDG_RUNTIME_DIR="/run/user/${SUDO_UID}"
+        eval "$(sudo -u "$SUDO_USER" \
+            systemctl --user show-environment 2>/dev/null \
+            | grep -E '^(DISPLAY|WAYLAND_DISPLAY|XAUTHORITY)=' \
+            | sed 's/^/export /')"
+    fi
+fi
+
+# ─── Step 3: Validate we have something to connect to ─────────────────────────
+
+if [[ -z "$DISPLAY" && -z "$WAYLAND_DISPLAY" ]]; then
+    echo "❌ face-unlock: Could not determine an active graphical session." >&2
+    echo "   Make sure a user is logged in with an X11 or Wayland session." >&2
+    exit 1
+fi
+
+# Re-export for the child process
+export DISPLAY="${DISPLAY:-}"
+export WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-}"
+export XAUTHORITY="${XAUTHORITY:-}"
+export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-}"
+
+# ─── Step 4: Launch UI ────────────────────────────────────────────────────────
+
+echo "face-unlock: DISPLAY=$DISPLAY  XAUTHORITY=$XAUTHORITY  XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR" >&2
+
+exec python3 "$UI_SCRIPT" "$@"

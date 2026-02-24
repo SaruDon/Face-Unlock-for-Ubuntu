@@ -1,0 +1,7 @@
+{
+  "name": "Face Unlock Guard",
+  "description": "Always-On Face Guard toggle for Accessibility settings",
+  "uuid": "face-unlock@face-unlock.ubuntu",
+  "shell-version": ["42", "43", "44", "45", "46", "47"],
+  "url": ""
+}

@@ -1,0 +1,155 @@
+/*
+ * Face Unlock Plymouth Theme — Boot Animation Script
+ * 
+ * Shows an iPhone-like Face ID ring animation at boot.
+ * If face auth succeeds → system boots normally
+ * If face auth times out → asks for password
+ */
+
+/* ── Screen Setup ─────────────────────────────────────────────── */
+screen_width  = Window.GetWidth();
+screen_height = Window.GetHeight();
+cx = screen_width  / 2;
+cy = screen_height / 2;
+
+/* ── Colors ───────────────────────────────────────────────────── */
+black   = Window.GetColor(0.0, 0.0, 0.0, 1.0);
+
+/* ── State ────────────────────────────────────────────────────── */
+mode = "scanning";   /* scanning | success | password */
+angle     = 0;
+ring_size = 140;
+tick      = 0;
+pulse_val = 0.0;
+alpha_bg  = 0.0;   /* fade-in */
+
+/* ── Background ───────────────────────────────────────────────── */
+bg = Window.GetRectangle(0, 0, screen_width, screen_height);
+bg.SetColor(0.05, 0.05, 0.07, 1.0);
+
+/* ── Face oval outline ────────────────────────────────────────── */
+face_oval = Window.GetEllipse(cx - 60, cy - 75, 120, 150);
+face_oval.SetColor(0.95, 0.95, 0.95, 0.08);
+
+/* ── Eye dots ─────────────────────────────────────────────────── */
+eye_left  = Window.GetEllipse(cx - 22, cy - 15, 10, 12);
+eye_right = Window.GetEllipse(cx + 12,  cy - 15, 10, 12);
+eye_left.SetColor(0.95, 0.95, 0.95, 0.25);
+eye_right.SetColor(0.95, 0.95, 0.95, 0.25);
+
+/* ── Status text ──────────────────────────────────────────────── */
+status_text = Window.GetText("Face ID", cx, cy + ring_size + 30, 0, 0, "center");
+status_text.SetColor(1.0, 1.0, 1.0, 0.85);
+status_text.SetFont("Ubuntu Bold 16");
+
+sub_text = Window.GetText("Move your face into view", cx, cy + ring_size + 58, 0, 0, "center");
+sub_text.SetColor(1.0, 1.0, 1.0, 0.45);
+sub_text.SetFont("Ubuntu 12");
+
+/* ── Scanning ring segments ───────────────────────────────────── */
+
+fun draw_ring(x, y, r, start_deg, end_deg, r_col, g_col, b_col, a_col, thickness) {
+    /* Plymouth draws arcs via polygons */
+    steps = 64;
+    start_rad = start_deg * 3.14159 / 180;
+    end_rad   = end_deg   * 3.14159 / 180;
+    span      = end_rad - start_rad;
+    
+    i = 0;
+    while (i < steps) {
+        t1 = start_rad + (i / steps)       * span;
+        t2 = start_rad + ((i + 1) / steps) * span;
+
+        inner = r - thickness / 2;
+        outer = r + thickness / 2;
+
+        x1o = x + Math.Cos(t1) * outer;
+        y1o = y + Math.Sin(t1) * outer;
+        x2o = x + Math.Cos(t2) * outer;
+        y2o = y + Math.Sin(t2) * outer;
+        x1i = x + Math.Cos(t1) * inner;
+        y1i = y + Math.Sin(t1) * inner;
+        x2i = x + Math.Cos(t2) * inner;
+        y2i = y + Math.Sin(t2) * inner;
+
+        seg = Window.GetQuadrangle(x1o, y1o, x2o, y2o, x2i, y2i, x1i, y1i);
+        seg.SetColor(r_col, g_col, b_col, a_col);
+        i++;
+    }
+}
+
+/* ── Password prompt ──────────────────────────────────────────── */
+pass_box = Window.GetRectangle(cx - 140, cy + ring_size + 85, 280, 48);
+pass_box.SetColor(1.0, 1.0, 1.0, 0.10);
+pass_box.SetVisible(false);
+
+pass_label = Window.GetText("Enter Password:", cx, cy + ring_size + 96, 0, 0, "center");
+pass_label.SetColor(1.0, 1.0, 1.0, 0.85);
+pass_label.SetFont("Ubuntu 14");
+pass_label.SetVisible(false);
+
+/* ── Animation tick ───────────────────────────────────────────── */
+fun refresh_callback() {
+    tick++;
+
+    /* Fade in background */
+    if (alpha_bg < 1.0) alpha_bg += 0.05;
+
+    pulse_val = 0.5 + 0.5 * Math.Sin(tick * 0.06);
+
+    if (mode == "scanning") {
+        angle = (angle + 4) % 360;
+        start = angle - 40;
+        end   = angle + 220;
+
+        /* Golden scanning arc */
+        draw_ring(cx, cy, ring_size, start, end, 1.0, 0.84, 0.0, 0.9, 7);
+        /* Glow */
+        draw_ring(cx, cy, ring_size, start, end, 1.0, 0.84, 0.0, 0.1 + 0.08 * pulse_val, 18);
+
+        status_text.SetText("Face ID");
+        sub_text.SetText("Move your face into view");
+
+    } else if (mode == "success") {
+        /* Full green ring */
+        draw_ring(cx, cy, ring_size, -90, 270, 0.20, 0.78, 0.35, 1.0, 7);
+        status_text.SetText("Unlocked");
+        status_text.SetColor(0.20, 0.78, 0.35, 1.0);
+        sub_text.SetText("Welcome!");
+
+    } else if (mode == "password") {
+        /* Dim red arc */
+        draw_ring(cx, cy, ring_size, 0, 360, 1.0, 0.23, 0.19, 0.6, 7);
+        status_text.SetText("Enter Password");
+        status_text.SetColor(1.0, 1.0, 1.0, 0.85);
+        sub_text.SetText("Face unlock not available");
+        pass_box.SetVisible(true);
+        pass_label.SetVisible(true);
+    }
+}
+
+Plymouth.SetRefreshFunction(refresh_callback);
+
+/* ── Password entry ───────────────────────────────────────────── */
+fun display_password_callback(prompt, bullets) {
+    mode = "password";
+    pass_label.SetText(bullets);
+    pass_label.SetVisible(true);
+}
+
+Plymouth.SetDisplayPasswordFunction(display_password_callback);
+
+/* ── Normal boot message ──────────────────────────────────────── */
+fun display_message_callback(text) {
+    /* Silently swallow boot text — clean UI only */
+}
+
+Plymouth.SetMessageFunction(display_message_callback);
+
+/* ── Quit ─────────────────────────────────────────────────────── */
+fun quit_callback() {
+    /* Flash green on success */
+    mode = "success";
+}
+
+Plymouth.SetQuitFunction(quit_callback);
