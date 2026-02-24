@@ -160,8 +160,10 @@ def main():
     while True:
         try:
             lock_delay = int(get_config("guard_lock_delay", "30"))
+            warning_delay = int(get_config("guard_warning_delay", "5"))
         except ValueError:
             lock_delay = 30
+            warning_delay = 5
             
         guard_enabled = get_config("guard_enabled", "false").lower() == "true"
 
@@ -191,9 +193,9 @@ def main():
             absent_duration = time.time() - last_seen_time
             remaining = int(lock_delay - absent_duration)
             
-            # The UI handles the visual countdown. Spawn it immediately if 
-            # they are not currently authorized and we haven't spawned it yet.
-            if warning_process is None and remaining > 0:
+            # The UI handles the visual countdown. Spawn it only after 
+            # warning_delay has passed, if we haven't spawned it yet.
+            if warning_process is None and remaining > 0 and absent_duration >= warning_delay:
                 script_path = "/usr/local/bin/face-unlock-ui" 
                 # fallback or dev mode path if not installed
                 if not os.path.exists(script_path):
@@ -225,6 +227,9 @@ def main():
                         
                     if "XAUTHORITY" not in env:
                         env["XAUTHORITY"] = f"/run/user/{uid}/gdm/Xauthority"
+                        
+                    if "DBUS_SESSION_BUS_ADDRESS" not in env:
+                        env["DBUS_SESSION_BUS_ADDRESS"] = f"unix:path={runtime_dir}/bus"
                         
                     warning_process = subprocess.Popen(
                         [script_path, "--mode", "warning", "--timeout", str(remaining)],

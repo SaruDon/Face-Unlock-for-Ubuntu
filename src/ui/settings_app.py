@@ -41,6 +41,7 @@ class FaceUnlockSettings(Adw.Application):
         defaults = {
             "guard_enabled": "false",
             "guard_lock_delay": "30",
+            "guard_warning_delay": "5",
             "threshold": "0.55",
             "timeout": "20",
         }
@@ -136,6 +137,15 @@ class FaceUnlockSettings(Adw.Application):
         self.guard_delay_spin.set_valign(Gtk.Align.CENTER)
         guard_delay_row.add_suffix(self.guard_delay_spin)
         self.guard_group.add(guard_delay_row)
+        
+        # Guard Warning Delay
+        warning_delay_row = Adw.ActionRow(title="Warning Delay (seconds)")
+        warning_delay_row.set_subtitle("Time from face disappearance until warning UI appears")
+        
+        self.warning_delay_spin = Gtk.SpinButton.new_with_range(0, 60, 1)
+        self.warning_delay_spin.set_valign(Gtk.Align.CENTER)
+        warning_delay_row.add_suffix(self.warning_delay_spin)
+        self.guard_group.add(warning_delay_row)
         
         # Security Group
         self.security_group = Adw.PreferencesGroup(
@@ -233,6 +243,11 @@ class FaceUnlockSettings(Adw.Application):
             self.guard_delay_spin.set_value(float(cfg.get("guard_lock_delay", "30")))
         except (ValueError, TypeError):
             self.guard_delay_spin.set_value(30)
+            
+        try:
+            self.warning_delay_spin.set_value(float(cfg.get("guard_warning_delay", "5")))
+        except (ValueError, TypeError):
+            self.warning_delay_spin.set_value(5)
         
         try:
             self.strictness_slider.set_value(float(cfg.get("threshold", "0.55")))
@@ -284,10 +299,12 @@ class FaceUnlockSettings(Adw.Application):
         guard_state = self.guard_switch.get_active()
         guard_value = "true" if guard_state else "false"
         lock_delay = str(int(self.guard_delay_spin.get_value()))
+        warning_delay = str(int(self.warning_delay_spin.get_value()))
         threshold = str(round(self.strictness_slider.get_value(), 2))
         timeout = str(int(self.timeout_spin.get_value()))
         
         log.info(f"Applying: guard_enabled={guard_value}, guard_lock_delay={lock_delay}, "
+                 f"guard_warning_delay={warning_delay}, "
                  f"threshold={threshold}, timeout={timeout}")
         
         def task():
@@ -296,6 +313,7 @@ class FaceUnlockSettings(Adw.Application):
                 updates = {
                     "guard_enabled": guard_value,
                     "guard_lock_delay": lock_delay,
+                    "guard_warning_delay": warning_delay,
                     "threshold": threshold,
                     "timeout": timeout,
                 }
