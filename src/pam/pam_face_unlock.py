@@ -23,6 +23,7 @@ PAM_IGNORE      = 25
 
 FACE_ENGINE_PATH = "/usr/local/lib/face-unlock/face_engine.py"
 FACE_UI_PATH     = "/usr/local/bin/face-unlock-ui"
+VENV_PYTHON      = "/usr/local/lib/face-unlock/venv/bin/python3"
 
 log = logging.getLogger("pam_face_unlock")
 logging.basicConfig(
@@ -105,7 +106,7 @@ def run_face_engine(username: str) -> str:
     """
     try:
         proc = subprocess.run(
-            [sys.executable, FACE_ENGINE_PATH, "--user", username],
+            [VENV_PYTHON, FACE_ENGINE_PATH, "--user", username],
             capture_output=True,
             timeout=15,
             text=True

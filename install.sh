@@ -70,7 +70,7 @@ export DEBIAN_FRONTEND=noninteractive
 apt-get update -q
 
 PACKAGES=(
-  python3-pip python3-dev python3-gi python3-gi-cairo
+  python3-pip python3-venv python3-dev python3-gi python3-gi-cairo
   gir1.2-gtk-4.0 gir1.2-adw-1 gir1.2-glib-2.0
   libpam-python python3-pam
   cmake build-essential libopencv-dev
@@ -92,8 +92,10 @@ step "Installing Python dependencies"
 info "Installing face_recognition (this may take 5–15 minutes — compiling dlib…)"
 echo
 
+python3 -m venv --system-site-packages "${LIB_DIR}/venv"
+
 PIP_LOG="$(mktemp)"
-pip3 install --break-system-packages face_recognition opencv-python \
+"${LIB_DIR}/venv/bin/pip" install face_recognition opencv-python \
   >"${PIP_LOG}" 2>&1 &
 PIP_PID=$!
 
@@ -116,8 +118,7 @@ done
 # Clear spinner line
 printf "\r%*s\r" "$(tput cols 2>/dev/null || echo 60)" ""
 
-wait "$PIP_PID"
-PIP_EXIT=$?
+wait "$PIP_PID" && PIP_EXIT=0 || PIP_EXIT=$?
 
 if [[ $PIP_EXIT -ne 0 ]]; then
   echo

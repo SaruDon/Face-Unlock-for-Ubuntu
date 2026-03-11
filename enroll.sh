@@ -23,4 +23,4 @@ echo ""
 echo "  Enrolling face for user: ${REAL_USER}"
 echo ""
 
-python3 "${LIB_DIR}/enroll.py" --user "${REAL_USER}" "$@"
+"${LIB_DIR}/venv/bin/python3" "${LIB_DIR}/enroll.py" --user "${REAL_USER}" "$@"
