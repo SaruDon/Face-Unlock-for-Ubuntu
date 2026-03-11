@@ -5,7 +5,7 @@ PartOf=graphical-session.target
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/python3 /usr/local/lib/face-unlock/face_guardian.py
+ExecStart=/usr/local/lib/face-unlock/venv/bin/python3 /usr/local/lib/face-unlock/face_guardian.py
 Restart=on-failure
 RestartSec=5
 Environment=DISPLAY=:1
